@@ -36,7 +36,39 @@ class MLP(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    #raise NotImplementedError
+
+    self.n_inputs = n_inputs
+    self.n_hidden = n_hidden
+    self.amount_hidden = len(n_hidden)
+    self.n_classes = n_classes
+    self.learning_rate = 0.05
+    #self._batch_size =
+
+    #Store layers here in the form of tuples, feed forward and activation
+    self.layers = []
+
+    #Input layer
+    input_layer = LinearModule(n_inputs, n_hidden[0])
+    input_layer_a = ReLUModule()
+    tuple = (input_layer,input_layer_a)
+    self.layers.append(tuple)
+
+    #Hidden layers
+    for i,hidden_size in enumerate(n_hidden[:-1]):
+      next_hidden_size = n_hidden[i+1]
+      hidden_layer = LinearModule(hidden_size, next_hidden_size)
+      hidden_layer_a = ReLUModule()
+      tuple = (hidden_layer, hidden_layer_a)
+      self.layers.append(tuple)
+
+    #Output layer
+    last_layer_size = n_hidden[-1]
+    output_layer = LinearModule(last_layer_size, n_classes)
+    output_layer_a = SoftMaxModule()
+    tuple = (output_layer,output_layer_a)
+    self.layers.append(tuple)
+
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -58,7 +90,13 @@ class MLP(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    #raise NotImplementedError
+
+    for pre_layer,activation in self.layers:
+      x_tilde = pre_layer.forward(x)
+      x = activation.forward(x_tilde)
+
+    out = x
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -79,7 +117,12 @@ class MLP(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    #raise NotImplementedError
+
+    for pre_layer,activation in reversed(self.layers):
+      dout = activation.backward(dout)
+      dout = pre_layer.backward(dout)
+
     ########################
     # END OF YOUR CODE    #
     #######################
