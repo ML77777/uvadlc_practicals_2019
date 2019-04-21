@@ -11,6 +11,7 @@ import numpy as np
 import os
 from mlp_pytorch import MLP
 import cifar10_utils
+import torch
 import torch.nn as nn
 from torch import optim
 
@@ -49,8 +50,8 @@ def accuracy(predictions, targets):
   #######################
   raise NotImplementedError
 
-  final_predictions_indices = predictions.argmax(axis=1)
-  target_indices = targets.argmax(axis=1)
+  final_predictions_indices = torch.argmax(predictions,dim=1)
+  target_indices = torch.argmax(targets,dim=1)
   bool_matrix = final_predictions_indices == target_indices
   tp_tn = bool_matrix.sum()
   accuracy = tp_tn / np.shape(targets)[0]
@@ -128,17 +129,6 @@ def train():
     train_loss.backward()
     optimizer.step()
     '''
-    train_loss = cross_entropy_loss.forward(output, y_train_batch)
-    loss_gradient = cross_entropy_loss.backward(output, y_train_batch)
-    MLP_classifier.backward(loss_gradient)
-
-    #Gradients are defined in each layer now, update the weights with it
-    for pre_layer,activation in MLP_classifier.layers:
-      gradient_w = pre_layer.grads['weight']
-      gradient_b = pre_layer.grads['bias']
-      pre_layer.params['weight'] = pre_layer.params['weight'] - (FLAGS.learning_rate * gradient_w)
-      pre_layer.params['bias'] = pre_layer.params['bias'] - (FLAGS.learning_rate * gradient_b)
-
 
     if (step % FLAGS.eval_freq) == 0 or (step == FLAGS.max_steps -1):
       output_test = MLP_classifier.forward(x_test)

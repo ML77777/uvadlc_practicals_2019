@@ -59,8 +59,9 @@ class MLP(nn.Module):
     #Output layer
     last_layer_size = n_hidden[-1]
     output_layer = nn.Linear(last_layer_size, n_classes,bias=True)
-    self.layers.append(output_tuple)
+    self.layers.append(output_layer)
 
+    self.torch_layers = nn.ModuleList(self.layers)
     ########################
     # END OF YOUR CODE    #
     #######################
