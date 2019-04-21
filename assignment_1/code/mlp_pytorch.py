@@ -5,6 +5,7 @@ You should fill in code into indicated sections.
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+import torch.nn as nn
 
 class MLP(nn.Module):
   """
@@ -34,7 +35,32 @@ class MLP(nn.Module):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    #raise NotImplementedError
+
+    super(MLP, self).__init__()
+
+    self.n_inputs = n_inputs
+    self.n_hidden = n_hidden
+    self.n_classes = n_classes
+
+    self.layers = []
+
+    #Since softmax is in cross_entropy module, only have ReLu activation function which we can do in forward
+    #And dont need to keep track of activations functions as backgrad keeps track of gradients
+    input_layer = nn.Linear(n_inputs, n_hidden[0], bias=True)
+    self.layers.append(input_layer)
+
+    #Hidden layers
+    for i,hidden_size in enumerate(n_hidden[:-1]):
+      next_hidden_size = n_hidden[i+1]
+      hidden_layer = nn.Linear(hidden_size, next_hidden_size,bias = True)
+      self.layers.append(hidden_layer)
+
+    #Output layer
+    last_layer_size = n_hidden[-1]
+    output_layer = nn.Linear(last_layer_size, n_classes,bias=True)
+    self.layers.append(output_tuple)
+
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -56,7 +82,16 @@ class MLP(nn.Module):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    #raise NotImplementedError
+
+    for linear_layer in self.layers[:-1]:
+      x_tilde = linear_layer(x)
+      x = nn.ReLU(x_tilde,inplace=False)
+      #x = nn.functional.relu(x_tilde)
+
+    last_layer = self.layers[-1]
+    out = last_layer(x)
+
     ########################
     # END OF YOUR CODE    #
     #######################
