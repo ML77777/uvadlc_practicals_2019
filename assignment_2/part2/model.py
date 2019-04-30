@@ -35,20 +35,21 @@ class TextGenerationModel(nn.Module):
         self.lstm_num_hidden =  lstm_num_hidden
         self.lstm_num_layers = lstm_num_layers
 
-        self.embed = nn.Embedding(vocabulary_size, lstm_num_hidden) #Here set the embedding size to be equal to hidden size)
-        #With torch.no_grad():
-        #self.embed.weight.requires_grad = False #If dont train embeddings
-
         if 'cuda' in device.lower() and torch.cuda.is_available():
             self.device = torch.device('cuda')
             #print("Cuda")
         else:
             self.device = torch.device('cpu')
+        print(self.device)
+
+        self.embed = nn.Embedding(vocabulary_size, lstm_num_hidden) #Here set the embedding size to be equal to hidden size)
+        #With torch.no_grad():
+        #self.embed.weight.requires_grad = False #If dont train embeddings
 
         #Since the embedding size is equal to hidden size, that is also the input size
         self.rnn = nn.LSTM(input_size = lstm_num_hidden,hidden_size=lstm_num_hidden,num_layers=2)
-        self.h_zero = torch.zeros(2, batch_size, lstm_num_hidden)
-        self.c_zero = torch.zeros(2, batch_size, lstm_num_hidden)
+        self.h_zero = torch.zeros(2, batch_size, lstm_num_hidden,device = self.device)
+        self.c_zero = torch.zeros(2, batch_size, lstm_num_hidden,device = self.device)
         #self.h_zero = torch.randn(2, batch_size, lstm_num_hidden)
         #self.c_zero = torch.randn(2, batch_size, lstm_num_hidden)
 
@@ -71,8 +72,8 @@ class TextGenerationModel(nn.Module):
             h_zero = self.h_zero
             c_zero = self.c_zero
         else:
-            h_zero = torch.zeros(2, x_batch_size, self.lstm_num_hidden)
-            c_zero = torch.zeros(2, x_batch_size, self.lstm_num_hidden)
+            h_zero = torch.zeros(2, x_batch_size, self.lstm_num_hidden,device = self.device)
+            c_zero = torch.zeros(2, x_batch_size, self.lstm_num_hidden,device = self.device)
 
         output, (hn, cn) = self.rnn(x, (h_zero, c_zero))
         #print(output.shape)

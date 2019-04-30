@@ -51,7 +51,7 @@ def train(config):
     model = TextGenerationModel(config.batch_size, config.seq_length, dataset.vocab_size,config.lstm_num_hidden, config.lstm_num_layers, config.device)  # fixme
 
     device = model.device
-    model.to(device)
+    model = model.to(device)
 
     # Setup the loss and optimizer
     criterion = torch.nn.CrossEntropyLoss()
@@ -88,12 +88,14 @@ def train(config):
 
             #print(batch_inputs)
             #print(torch.stack(batch_inputs).shape)
+
             all_embed = []
             sentence = []
             for batch_letter in batch_inputs:
-                embedding = embed(batch_letter)
+                batch_letter_to = torch.tensor(batch_letter,device = device)
+                embedding = embed(batch_letter_to)
                 all_embed.append(embedding)
-                sentence.append(batch_letter[0].item())
+                sentence.append(batch_letter_to[0].item())
             all_embed = torch.stack(all_embed)
             #print(all_embed.shape)
             #print(len(batch_targets))
@@ -105,7 +107,7 @@ def train(config):
             for batch_letter in batch_targets:
                 sentence.append(batch_letter[0].item())
             #print(dataset.convert_to_string(sentence))
-
+            all_embed  = all_embed.to(device)
             outputs = model(all_embed) #[30,64,87] dimension for now
 
 
@@ -118,11 +120,12 @@ def train(config):
 
             #Method 1, turn 3d into 2d tensor
             outputs_2 = outputs.view(-1, dataset.vocab_size)
+            outputs_2 = outputs_2.to(device)
             #print(outputs_2.shape)
             #print(batch_targets)
-            batch_targets = torch.stack(batch_targets)
+            batch_targets = torch.stack(batch_targets).to(device)
             batch_targets_2 = batch_targets.view(-1)
-            batch_targets_2 = batch_targets_2.to(device)
+            #batch_targets_2 = batch_targets_2.to(device)
             #print(batch_targets_2.shape)
 
             loss = criterion(outputs_2, batch_targets_2)
@@ -233,7 +236,9 @@ if __name__ == "__main__":
 
     config = parser.parse_args()
 
+    #config.device = 'cpu'
     config.train_steps = 9000
+
     #Same sentence examples.
     torch.manual_seed(42)
     np.random.seed(42)
