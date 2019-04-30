@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import torch
 import torch.nn as nn
+import math
 
 ################################################################################
 
@@ -29,6 +30,82 @@ class LSTM(nn.Module):
         super(LSTM, self).__init__()
         # Initialization here ...
 
+        self.seq_length = seq_length
+        self.batch_size = batch_size
+        self.input_dim = input_dim
+        self.hidden_dim = num_hidden
+        self.num_classes = num_classes
+
+        if 'cuda' in device.lower() and torch.cuda.is_available():
+            self.device = torch.device('cuda')
+            #print("Cuda")
+        else:
+            self.device = torch.device('cpu')
+            #print("CPU")
+
+        #Matrices multiplied with input
+        self.w_gx = nn.Parameter( torch.randn(input_dim,num_hidden))
+        self.w_ix = nn.Parameter(torch.randn(input_dim, num_hidden))
+        self.w_fx = nn.Parameter(torch.randn(input_dim, num_hidden))
+        self.w_ox = nn.Parameter(torch.randn(input_dim, num_hidden))
+
+        #Matrices multiplied with previous hidden state
+        self.w_gh = nn.Parameter(torch.rand(num_hidden, num_hidden))
+        self.w_ih = nn.Parameter(torch.rand(num_hidden, num_hidden))
+        self.w_fh = nn.Parameter(torch.rand(num_hidden, num_hidden))
+        self.w_oh = nn.Parameter(torch.rand(num_hidden, num_hidden))
+
+        #Biases
+        self.b_g = nn.Parameter(torch.rand(num_hidden))  # ,1))
+        self.b_i = nn.Parameter(torch.rand(num_hidden))  # ,1))
+        self.b_f = nn.Parameter(torch.rand(num_hidden))  # ,1))
+        self.b_o = nn.Parameter(torch.rand(num_hidden))  # ,1))
+
+        #self.b_g = nn.Parameter(torch.zeros(num_hidden))  # ,1))
+        #self.b_i = nn.Parameter(torch.zeros(num_hidden))  # ,1))
+        #self.b_f = nn.Parameter(torch.zeros(num_hidden))  # ,1))
+        #self.b_o = nn.Parameter(torch.zeros(num_hidden))  # ,1))
+
+        #Initial
+        self.prev_h = torch.zeros(batch_size,num_hidden)
+        self.prev_c = torch.zeros(batch_size, num_hidden)
+
+        #Output mapping
+        self.w_ph = nn.Parameter(torch.randn(num_hidden, num_classes))
+        self.b_p = nn.Parameter(torch.rand(num_classes))  # ,1))
+
+        #From NLP1: This is PyTorch's default initialization method
+        stdv = 1.0 / math.sqrt(num_hidden) #num_hidden
+        for weight in self.parameters():
+           weight.data.uniform_(-stdv, stdv)
+
     def forward(self, x):
         # Implementation here ...
-        pass
+        #pass
+
+        prev_h = self.prev_h
+        prev_c = self.prev_c
+
+        #For every timestep input in x
+        for i in range(self.seq_length):
+            single_x_batch = x[:,i]
+            single_x_batch = single_x_batch.view((single_x_batch.shape[0],1))
+            g_inside = single_x_batch @ self.w_gx + prev_h @ self.w_gh + self.b_g
+            g = torch.tanh(g_inside)
+
+            i_inside = single_x_batch @ self.w_ix + prev_h @ self.w_ih + self.b_i
+            i = torch.sigmoid(i_inside)
+
+            f_inside = single_x_batch @ self.w_fx + prev_h @ self.w_fh + self.b_f
+            f = torch.sigmoid(f_inside)
+
+            o_inside = single_x_batch @ self.w_ox + prev_h @ self.w_oh + self.b_o
+            o = torch.sigmoid(o_inside)
+
+            c = g * i + prev_c * f
+            prev_h = torch.tanh(c) * o
+
+        #Only compute the cross-entropy for the last timestep, so only last output is needed
+        p = prev_h @ self.w_ph + self.b_p
+
+        return p
