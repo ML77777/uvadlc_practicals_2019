@@ -87,8 +87,8 @@ class MLP(nn.Module):
 
     for linear_layer in self.layers[:-1]:
       x_tilde = linear_layer(x)
-      x = nn.ReLU(x_tilde,inplace=False)
-      #x = nn.functional.relu(x_tilde)
+      #x = nn.ReLU(x_tilde,inplace=False)
+      x = nn.functional.relu(x_tilde)
 
     last_layer = self.layers[-1]
     out = last_layer(x)

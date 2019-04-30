@@ -14,6 +14,7 @@ import cifar10_utils
 import torch
 import torch.nn as nn
 from torch import optim
+import matplotlib.pyplot as plt
 
 # Default constants
 DNN_HIDDEN_UNITS_DEFAULT = '100'
@@ -48,14 +49,18 @@ def accuracy(predictions, targets):
   ########################
   # PUT YOUR CODE HERE  #
   #######################
-  raise NotImplementedError
+  #raise NotImplementedError
 
-  final_predictions_indices = torch.argmax(predictions,dim=1)
-  target_indices = torch.argmax(targets,dim=1)
-  bool_matrix = final_predictions_indices == target_indices
-  tp_tn = bool_matrix.sum()
-  accuracy = tp_tn / np.shape(targets)[0]
+  #final_predictions_indices = torch.argmax(predictions,dim=1)
+  #target_indices = torch.argmax(targets,dim=1)
+  #bool_matrix = final_predictions_indices == target_indices
+  #tp_tn = bool_matrix.sum()
+  #accuracy = tp_tn / np.shape(targets)[0]
 
+  _, predicted = torch.max(predictions, 1)
+  _, labels = torch.max(targets, 1)
+  correct = (predicted == labels).sum().item()
+  accuracy = correct / predictions.size(0)
   ########################
   # END OF YOUR CODE    #
   #######################
@@ -108,7 +113,9 @@ def train():
 
   #Reshape here as we do multiple test while training
   x_test = x_test.reshape((nsamples_x, input_per_image))
-  x_test = torch.Tensor(x_test)
+  x_test = torch.tensor(x_test)
+  y_test = torch.tensor(y_test)
+  _, y_test_max = torch.max(y_test, 1)
 
   optimizer = optim.SGD(MLP_classifier.parameters(),FLAGS.learning_rate)
 
@@ -117,23 +124,26 @@ def train():
     #Get batch and reshape for input
     x_train_batch, y_train_batch = train_data.next_batch(FLAGS.batch_size)
     x_train_batch = x_train_batch.reshape((FLAGS.batch_size, input_per_image))
-    x_train_batch = torch.Tensor(x_train_batch,requires_grad = True)
-    y_train_batch = torch.Tensor(y_train_batch)
+    x_train_batch = torch.tensor(x_train_batch, requires_grad=True)
+    y_train_batch = torch.tensor(y_train_batch)
+    _, y_train_batch_max = torch.max(y_train_batch, 1)
 
     #Feed forward, get loss and gradient of the loss function and backpropagate.
     output = MLP_classifier.forward(x_train_batch)
-    break
+    #break
 
-    train_loss = cross_entropy_loss(output,y_train_batch)
+    train_loss = cross_entropy_loss(output,y_train_batch_max)
     MLP_classifier.zero_grad()
     train_loss.backward()
     optimizer.step()
-    '''
+    #'''
+    #print(x_train_batch)
+    #print(output)
 
     if (step % FLAGS.eval_freq) == 0 or (step == FLAGS.max_steps -1):
       output_test = MLP_classifier.forward(x_test)
       test_acc = accuracy(output_test,y_test)
-      test_loss = cross_entropy_loss.forward(output_test,y_test)
+      test_loss = cross_entropy_loss.forward(output_test,y_test_max)
       list_test_acc.append(test_acc)
       list_test_loss.append(test_loss)
 
@@ -162,7 +172,7 @@ def train():
   plt.legend()
   #plt.savefig('loss.png', bbox_inches='tight')
   plt.show()
-  '''
+  #'''
   ########################
   # END OF YOUR CODE    #
   #######################

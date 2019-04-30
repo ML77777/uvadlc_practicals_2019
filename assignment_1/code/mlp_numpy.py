@@ -40,10 +40,7 @@ class MLP(object):
 
     self.n_inputs = n_inputs
     self.n_hidden = n_hidden
-    self.amount_hidden = len(n_hidden)
     self.n_classes = n_classes
-    self.learning_rate = 0.05
-    #self._batch_size =
 
     #Store layers here in the form of tuples, feed forward and activation
     self.layers = []
