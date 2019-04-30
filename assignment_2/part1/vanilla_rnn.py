@@ -40,16 +40,16 @@ class VanillaRNN(nn.Module):
             self.device = torch.device('cuda')
         else:
             self.device = torch.device('cpu')
-
+        print(self.device)
         #Parameters
-        self.w_hx = nn.Parameter( torch.randn(input_dim,num_hidden))
-        self.w_hh = nn.Parameter( torch.rand(num_hidden,num_hidden))
-        self.b_h = nn.Parameter( torch.rand(num_hidden)) #,1))
-        self.w_ph = nn.Parameter( torch.randn(num_hidden,num_classes))
-        self.b_p = nn.Parameter( torch.rand(num_classes)) #,1))
+        self.w_hx = nn.Parameter( torch.randn(input_dim,num_hidden,device=self.device))
+        self.w_hh = nn.Parameter( torch.rand(num_hidden,num_hidden,device=self.device))
+        self.b_h = nn.Parameter( torch.rand(num_hidden,device=self.device)) #,1))
+        self.w_ph = nn.Parameter( torch.randn(num_hidden,num_classes,device=self.device))
+        self.b_p = nn.Parameter( torch.rand(num_classes,device=self.device)) #,1))
 
         #Initial h
-        self.prev_h = torch.zeros(batch_size,num_hidden)
+        self.prev_h = torch.zeros(batch_size,num_hidden,device=self.device)
 
         #From NLP1: This is PyTorch's default initialization method
         stdv = 1.0 / math.sqrt(num_hidden)

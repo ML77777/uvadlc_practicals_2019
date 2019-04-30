@@ -55,7 +55,7 @@ def train(config):
         model = LSTM(config.input_length, config.input_dim,  config.num_hidden, config.num_classes, config.batch_size, config.device)
 
     device = model.device
-    model.to(device)
+    model = model.to(device)
 
     # Initialize the dataset and data loader (note the +1)
     dataset = PalindromeDataset(config.input_length+1)
@@ -172,9 +172,10 @@ if __name__ == "__main__":
 
     config = parser.parse_args()
 
-    config.model_type = "LSTM"
-    config.input_length = 20
-    config.learning_rate = 0.01
+    #config.model_type = "LSTM"
+    #config.input_length = 20
+    #config.learning_rate = 0.01
+    #config.device = 'cpu'
 
     #Seeds for for reproducibility
     torch.manual_seed(42)
