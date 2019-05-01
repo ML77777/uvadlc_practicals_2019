@@ -44,22 +44,22 @@ class LSTM(nn.Module):
             #print("CPU")
 
         #Matrices multiplied with input
-        self.w_gx = nn.Parameter( torch.randn(input_dim,num_hidden))
-        self.w_ix = nn.Parameter(torch.randn(input_dim, num_hidden))
-        self.w_fx = nn.Parameter(torch.randn(input_dim, num_hidden))
-        self.w_ox = nn.Parameter(torch.randn(input_dim, num_hidden))
+        self.w_gx = nn.Parameter( torch.randn(input_dim,num_hidden,device=self.device))
+        self.w_ix = nn.Parameter(torch.randn(input_dim, num_hidden,device=self.device))
+        self.w_fx = nn.Parameter(torch.randn(input_dim, num_hidden,device=self.device))
+        self.w_ox = nn.Parameter(torch.randn(input_dim, num_hidden,device=self.device))
 
         #Matrices multiplied with previous hidden state
-        self.w_gh = nn.Parameter(torch.rand(num_hidden, num_hidden))
-        self.w_ih = nn.Parameter(torch.rand(num_hidden, num_hidden))
-        self.w_fh = nn.Parameter(torch.rand(num_hidden, num_hidden))
-        self.w_oh = nn.Parameter(torch.rand(num_hidden, num_hidden))
+        self.w_gh = nn.Parameter(torch.rand(num_hidden, num_hidden,device=self.device))
+        self.w_ih = nn.Parameter(torch.rand(num_hidden, num_hidden,device=self.device))
+        self.w_fh = nn.Parameter(torch.rand(num_hidden, num_hidden,device=self.device))
+        self.w_oh = nn.Parameter(torch.rand(num_hidden, num_hidden,device=self.device))
 
         #Biases
-        self.b_g = nn.Parameter(torch.rand(num_hidden))  # ,1))
-        self.b_i = nn.Parameter(torch.rand(num_hidden))  # ,1))
-        self.b_f = nn.Parameter(torch.rand(num_hidden))  # ,1))
-        self.b_o = nn.Parameter(torch.rand(num_hidden))  # ,1))
+        self.b_g = nn.Parameter(torch.rand(num_hidden,device=self.device))  # ,1))
+        self.b_i = nn.Parameter(torch.rand(num_hidden,device=self.device))  # ,1))
+        self.b_f = nn.Parameter(torch.rand(num_hidden,device=self.device))  # ,1))
+        self.b_o = nn.Parameter(torch.rand(num_hidden,device=self.device))  # ,1))
 
         #self.b_g = nn.Parameter(torch.zeros(num_hidden))  # ,1))
         #self.b_i = nn.Parameter(torch.zeros(num_hidden))  # ,1))
@@ -67,17 +67,17 @@ class LSTM(nn.Module):
         #self.b_o = nn.Parameter(torch.zeros(num_hidden))  # ,1))
 
         #Initial
-        self.prev_h = torch.zeros(batch_size,num_hidden)
-        self.prev_c = torch.zeros(batch_size, num_hidden)
+        self.prev_h = torch.zeros(batch_size,num_hidden,device=self.device)
+        self.prev_c = torch.zeros(batch_size, num_hidden,device=self.device)
 
         #Output mapping
-        self.w_ph = nn.Parameter(torch.randn(num_hidden, num_classes))
-        self.b_p = nn.Parameter(torch.rand(num_classes))  # ,1))
+        self.w_ph = nn.Parameter(torch.randn(num_hidden, num_classes,device=self.device))
+        self.b_p = nn.Parameter(torch.rand(num_classes,device=self.device))  # ,1))
 
         #From NLP1: This is PyTorch's default initialization method
-        stdv = 1.0 / math.sqrt(num_hidden) #num_hidden
-        for weight in self.parameters():
-           weight.data.uniform_(-stdv, stdv)
+        #stdv = 1.0 / math.sqrt(num_hidden) #num_hidden
+        #for weight in self.parameters():
+        #   weight.data.uniform_(-stdv, stdv)
 
     def forward(self, x):
         # Implementation here ...
