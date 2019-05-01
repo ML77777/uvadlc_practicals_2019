@@ -68,6 +68,7 @@ def train(config):
     list_train_acc = []
     list_train_loss = []
     acc_average = []
+    loss_average = []
 
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
@@ -83,6 +84,7 @@ def train(config):
         loss = criterion(output,batch_targets)
         model.zero_grad()
         loss.backward()
+        loss = loss.item() #Only get the value to be stored, otherwise too much memory
 
         ############################################################################
         # QUESTION: what happens here and why?
@@ -104,12 +106,27 @@ def train(config):
         result = number_predictions == batch_targets
         accuracy = result.sum().item() / len(batch_targets)
 
+        if config.measure_type == 2:
+            acc_average.append(accuracy)
+            loss_average.append(loss)
 
         # Just for time measurement
         t2 = time.time()
         examples_per_second = config.batch_size/float(t2-t1)
 
+        # Add accuracy and loss to list
         if step % 10 == 0:
+
+            #Average accuracy and loss over the last 10 step
+            if config.measure_type == 2:
+                accuracy = sum(acc_average) / 10
+                loss = sum(loss_average) / 10
+                acc_average = []
+                loss_average = []
+
+            #Either accuracy and loss on the the 10th interval or the average of the last 10 steps.
+            list_train_acc.append(accuracy)
+            list_train_loss.append(loss)
 
             print("[{}] Train Step {:04d}/{:04d}, Batch Size = {}, Examples/Sec = {:.2f}, "
                   "Accuracy = {:.2f}, Loss = {:.3f}".format(
@@ -117,10 +134,11 @@ def train(config):
                     config.train_steps, config.batch_size, examples_per_second,
                     accuracy, loss
             ))
-
-            #Add to list
+        elif config.measure_type == 0:
+            #Track accuracy and loss for every step even if it is not on the 10th interval
             list_train_acc.append(accuracy)
             list_train_loss.append(loss)
+
 
         if step == config.train_steps:
             # If you receive a PyTorch data-loader error, check this bug report:
@@ -130,9 +148,14 @@ def train(config):
     print('Done training.')
 
     if not config.overview_length:
-        eval_steps = list(range(0,config.train_steps+10,10))
+        if config.measure_type == 0:
+            eval_steps = list(range(config.train_steps+1)) #Every step Acc
+        else:
+            eval_steps = list(range(0,config.train_steps+10,10))
+
+        print(len(list_train_acc))
         plt.plot(eval_steps, list_train_acc, label="Train accuracy")
-        plt.xlabel("Evaluation step")
+        plt.xlabel("Step")
         plt.ylabel("Accuracy")
         plt.title("Training accuracies", fontsize=18, fontweight="bold")
         plt.legend()
@@ -140,10 +163,10 @@ def train(config):
         plt.show()
 
         plt.plot(eval_steps, list_train_loss, label="Train loss")
-        plt.xlabel("Evaluation step")
+        plt.xlabel("Step")
         plt.ylabel("Loss")
         plt.title("Train loss", fontsize=18, fontweight="bold")
-        #plt.legend()
+        plt.legend()
         # plt.savefig('loss.png', bbox_inches='tight')
         plt.show()
 
@@ -168,7 +191,8 @@ if __name__ == "__main__":
     parser.add_argument('--train_steps', type=int, default=10000, help='Number of training steps')
     parser.add_argument('--max_norm', type=float, default=10.0)
     parser.add_argument('--device', type=str, default="cuda:0", help="Training device 'cpu' or 'cuda:0'")
-    parser.add_argument('--overview_length', type=int, default="0", help="Plot the accuracy curves of different Palindromes lengths")
+    parser.add_argument('--measure_type', type=int, default="1", help="Track accuracy and loss on every step (0), every 10 step (1) or every 10 step take avrerage over them (2)")
+    parser.add_argument('--overview_length', type=int, default="1", help="Plot the accuracy curves of different Palindromes lengths of 1")
 
     config = parser.parse_args()
 
@@ -184,16 +208,20 @@ if __name__ == "__main__":
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    if config.overview_length:
-        overview = []
 
-        eval_steps = list(range(0, config.train_steps + 10, 10))
+    if config.overview_length:
+        overview_loss = []
+
+        if config.measure_type == 0:
+            eval_steps = list(range(config.train_steps+1)) #Every step Acc
+        else:
+            eval_steps = list(range(0,config.train_steps+10,10)) #Every interval acc
 
         for i in range(4,50,5):
             config.input_length = i
             list_train_acc,list_train_loss = train(config)
             #info = (i+1,train_acc,train_loss)
-            #overview.append(info)
+            overview_loss.append((i+1,list_train_loss))
 
             plt.plot(eval_steps, list_train_acc, label=str(i+1))
 
@@ -201,16 +229,18 @@ if __name__ == "__main__":
         plt.ylabel("Accuracy")
         plt.title("Training accuracies of different Palindromes lengths", fontsize=18, fontweight="bold")
         plt.legend(title="Lengths")
-        # plt.savefig('accuracies.png', bbox_inches='tight')
+        #plt.savefig('accuracies.png', bbox_inches='tight')
         plt.show()
 
-        #plt.plot(eval_steps, list_train_loss, label="Train loss")
-        #plt.xlabel("Evaluation step")
-        #plt.ylabel("Loss")
-        #plt.title("Train loss", fontsize=18, fontweight="bold")
-        #plt.legend()
-        # plt.savefig('loss.png', bbox_inches='tight')
-        #plt.show()
+        for i,loss in overview_loss:
+            plt.plot(eval_steps, loss, label=str(i))
+
+        plt.xlabel("Evaluation step")
+        plt.ylabel("Loss")
+        plt.title("Train loss", fontsize=18, fontweight="bold")
+        plt.legend()
+        #plt.savefig('loss.png', bbox_inches='tight')
+        plt.show()
     else:
         # Train the model (once)
         train(config)

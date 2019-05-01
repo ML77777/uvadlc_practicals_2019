@@ -53,21 +53,15 @@ class TextGenerationModel(nn.Module):
         #self.h_zero = torch.randn(2, batch_size, lstm_num_hidden)
         #self.c_zero = torch.randn(2, batch_size, lstm_num_hidden)
 
-        #>>> input = torch.randn(5, 3, 10)   #(seq_len, batch, input_size) #seq_length, batch_size, lstm_num_hidden)
-        #>>> h0 = torch.randn(2, 3, 20) (num_layers * num_directions, batch, hidden_size)
-        #>>> c0 = torch.randn(2, 3, 20) (num_layers * num_directions, batch, hidden_size)
-        #>>> output, (hn, cn) = rnn(input, (h0, c0)) (seq_len, batch, num_directions * hidden_size)
-
         #Linear output mapping
         self.output_mapping = nn.Linear(lstm_num_hidden, vocabulary_size)
-        #Input: (N,∗,in_features)(N, *, \text{in\_features})(N,∗,in_features) where ∗*∗ means any number of additional dimensions
-        #Output: (N,∗,out_features)(N, *, \text{out\_features})(N,∗,out_features) where all but the last dimension are the same shape as the input.
-
 
     def forward(self, x):
         # Implementation here...
         #pass
+
         x_batch_size = x.shape[1]
+        #Check if the batch size of input is equal to given batch size earlier or is lower as leftovers
         if x_batch_size == self.batch_size:
             h_zero = self.h_zero
             c_zero = self.c_zero
@@ -76,8 +70,7 @@ class TextGenerationModel(nn.Module):
             c_zero = torch.zeros(2, x_batch_size, self.lstm_num_hidden,device = self.device)
 
         output, (hn, cn) = self.rnn(x, (h_zero, c_zero))
-        #print(output.shape)
-        output = self.output_mapping(output) # output.view(len(x), -1)
-        #print(output.shape)
+        #Map to the vocabulary classes
+        output = self.output_mapping(output)
 
         return output

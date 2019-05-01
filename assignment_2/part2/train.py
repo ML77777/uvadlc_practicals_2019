@@ -39,13 +39,13 @@ from part2.model import TextGenerationModel
 def train(config):
 
     # Initialize the device which to run the model on
-    device = torch.device(config.device)
+    #device = torch.device(config.device)
 
     # Initialize the dataset and data loader (note the +1)
     dataset = TextDataset(config.txt_file,config.seq_length)  # fixme
     data_loader = DataLoader(dataset, config.batch_size, num_workers=1)
 
-    #print(dataset._char_to_ix) vocabulary changes, but batches are the same sentence examples.
+    #print(dataset._char_to_ix) vocabulary changes, but batches are same sentence examples with the seeds earlier.
 
     # Initialize the model that we are going to use
     model = TextGenerationModel(config.batch_size, config.seq_length, dataset.vocab_size,config.lstm_num_hidden, config.lstm_num_layers, config.device)  # fixme
@@ -55,14 +55,17 @@ def train(config):
 
     # Setup the loss and optimizer
     criterion = torch.nn.CrossEntropyLoss()
-    #criterion2 = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.RMSprop(model.parameters(), lr = config.learning_rate)
     print("Len dataset:", len(dataset))
     print("Amount of steps for dataset:",len(dataset)/config.batch_size)
 
-    #amount_epochs =  round(config.train_steps / round(len(dataset)/config.batch_size))
     current_step = -1
     not_max = True
+
+    list_train_acc = []
+    list_train_loss = []
+    acc_average = []
+    loss_average = []
 
     while not_max:
 
@@ -71,35 +74,25 @@ def train(config):
             # Only for time measurement of step through network
             t1 = time.time()
 
-            current_step += 1
             #######################################################
             # Add more code here ...
 
+            current_step += 1
+
             #List of indices from word to ID, that is in dataset for embedding
-            #indices = ..
-            #model.forward(indices)
-            #print(batch_inputs[0])
-            #print(len(batch_inputs))  30 Seq_length, so many tensors
-            #print(len(batch_inputs[0]))  64 batch_size, length of a tensor
-            #print(batch_targets)
-            #print(len(batch_targets))
+            #Embedding lookup
             embed = model.embed #nn.Embedding(dataset.vocab_size, config.lstm_num_hidden)
-            #print(embed(batch_inputs[0]))
 
-            #print(batch_inputs)
-            #print(torch.stack(batch_inputs).shape)
-
+            #Preprocess input to embeddings to give to LSTM
             all_embed = []
             sentence = []
             for batch_letter in batch_inputs:
                 batch_letter_to = torch.tensor(batch_letter,device = device)
                 embedding = embed(batch_letter_to)
                 all_embed.append(embedding)
+
                 sentence.append(batch_letter_to[0].item())
             all_embed = torch.stack(all_embed)
-            #print(all_embed.shape)
-            #print(len(batch_targets))
-            #print(len(batch_targets[0]))
 
             #print(dataset.convert_to_string(sentence))
 
@@ -107,50 +100,33 @@ def train(config):
             for batch_letter in batch_targets:
                 sentence.append(batch_letter[0].item())
             #print(dataset.convert_to_string(sentence))
+
+
             all_embed  = all_embed.to(device)
-            outputs = model(all_embed) #[30,64,87] dimension for now
-
-
+            outputs = model(all_embed) #[30,64,87] dimension for fairy tails
 
             #######################################################
 
             #loss = np.inf   # fixme
             accuracy = 0.0  # fixme
 
-
             #Method 1, turn 3d into 2d tensor
-            outputs_2 = outputs.view(-1, dataset.vocab_size)
-            outputs_2 = outputs_2.to(device)
+            #outputs_2 = outputs.view(-1, dataset.vocab_size)
+            #outputs_2 = outputs_2.to(device)
             #print(outputs_2.shape)
             #print(batch_targets)
-            batch_targets = torch.stack(batch_targets).to(device)
-            batch_targets_2 = batch_targets.view(-1)
+            #batch_targets = torch.stack(batch_targets).to(device)
+            #batch_targets_2 = batch_targets.view(-1)
             #batch_targets_2 = batch_targets_2.to(device)
             #print(batch_targets_2.shape)
-
-            loss = criterion(outputs_2, batch_targets_2)
+            #loss = criterion(outputs_2, batch_targets_2)
 
             #Method 2, ensuring that the prediction dim are batchsize x vocab_size x sequence length and targets: batchsize x sequence length
-            #Same loss value, but slower
-            #reformed_outputs = []
-            #for second_dim in range(outputs.shape[1]):
-            #    a_sequence = []
-            #    for first_dim in range(outputs.shape[0]):
-            #        a_sequence.append(outputs[first_dim,second_dim,:])
-            #    reformed_outputs.append(torch.t(torch.stack(a_sequence)))
-            #reformed_outputs = torch.stack(reformed_outputs)
-            #print(reformed_outputs.shape)
-
-            #loss2 = criterion2(reformed_outputs,torch.t(batch_targets))
-            #loss = criterion(reformed_outputs, torch.t(batch_targets))
-            #for o in outputs:
-
-            #print(loss)
-
-            #break
-
+            batch_first_output = outputs.transpose(0, 1).transpose(1, 2)
+            loss = criterion(batch_first_output, torch.t(batch_targets))
             model.zero_grad()
             loss.backward()
+            loss = loss.item()
             torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
             optimizer.step()
 
@@ -163,11 +139,16 @@ def train(config):
             #Predicted characters of example 1
             #print(sentence_0)
             #print(dataset.convert_to_string(sentence_0.tolist()))
-
+            print(outputs)
             number_predictions = torch.argmax(outputs, dim=2)
+            print(number_predictions)
+            sfa
             result = number_predictions == batch_targets
             accuracy = result.sum().item() / (batch_targets.shape[0] * batch_targets.shape[1])
 
+            if config.measure_type == 2:
+                acc_average.append(accuracy)
+                loss_average.append(loss)
 
             # Just for time measurement
             t2 = time.time()
@@ -175,12 +156,27 @@ def train(config):
 
             if step % config.print_every == 0:
 
+                # Average accuracy and loss over the last print every step
+                if config.measure_type == 2:
+                    accuracy = sum(acc_average) / config.print_every
+                    loss = sum(loss_average) / config.print_every
+                    acc_average = []
+                    loss_average = []
+
+                # Either accuracy and loss on the the 10th interval or the average of the last 10 steps.
+                list_train_acc.append(accuracy)
+                list_train_loss.append(loss)
+
                 print("[{}] Train Step {:04d}/{:04d}, Batch Size = {}, Examples/Sec = {:.2f}, "
                       "Accuracy = {:.2f}, Loss = {:.3f}".format(
                         datetime.now().strftime("%Y-%m-%d %H:%M"), current_step,
                         config.train_steps, config.batch_size, examples_per_second,
                         accuracy, loss
                 ))
+            elif config.measure_type == 0:
+                # Track accuracy and loss for every step
+                list_train_acc.append(accuracy)
+                list_train_loss.append(loss)
 
             if step == config.sample_every:
                 # Generate some sentences by sampling from the model
@@ -233,6 +229,7 @@ if __name__ == "__main__":
     parser.add_argument('--sample_every', type=int, default=100, help='How often to sample from the model')
 
     parser.add_argument('--device', type=str, default="cuda:0", help="Training device 'cpu' or 'cuda:0'")
+    parser.add_argument('--measure_type', type=int, default="2", help="Track accuracy and loss on every step (0), every print step (1) or every print step take avrerage over those intervals (2)")
 
     config = parser.parse_args()
 

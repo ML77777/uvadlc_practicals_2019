@@ -41,6 +41,7 @@ class VanillaRNN(nn.Module):
         else:
             self.device = torch.device('cpu')
         print(self.device)
+
         #Parameters
         self.w_hx = nn.Parameter( torch.randn(input_dim,num_hidden,device=self.device))
         self.w_hh = nn.Parameter( torch.rand(num_hidden,num_hidden,device=self.device))
@@ -71,7 +72,6 @@ class VanillaRNN(nn.Module):
             single_x_batch = single_x_batch.view((single_x_batch.shape[0],1))
             inside = single_x_batch @ self.w_hx + prev_h @ self.w_hh + self.b_h
             prev_h = torch.tanh(inside)
-
 
         #Only compute the cross-entropy for the last timestep, so only last output is needed
         p = prev_h @ self.w_ph + self.b_p
