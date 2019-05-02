@@ -19,6 +19,7 @@ from __future__ import print_function
 
 import torch.nn as nn
 import torch
+import random
 
 
 class TextGenerationModel(nn.Module):
@@ -48,8 +49,8 @@ class TextGenerationModel(nn.Module):
 
         #Since the embedding size is equal to hidden size, that is also the input size
         self.rnn = nn.LSTM(input_size = lstm_num_hidden,hidden_size=lstm_num_hidden,num_layers=2)
-        self.h_zero = torch.zeros(2, batch_size, lstm_num_hidden,device = self.device)
-        self.c_zero = torch.zeros(2, batch_size, lstm_num_hidden,device = self.device)
+        self.h_zero = torch.zeros(self.lstm_num_layers, batch_size, lstm_num_hidden,device = self.device)
+        self.c_zero = torch.zeros(self.lstm_num_layers, batch_size, lstm_num_hidden,device = self.device)
         #self.h_zero = torch.randn(2, batch_size, lstm_num_hidden)
         #self.c_zero = torch.randn(2, batch_size, lstm_num_hidden)
 
@@ -66,11 +67,70 @@ class TextGenerationModel(nn.Module):
             h_zero = self.h_zero
             c_zero = self.c_zero
         else:
-            h_zero = torch.zeros(2, x_batch_size, self.lstm_num_hidden,device = self.device)
-            c_zero = torch.zeros(2, x_batch_size, self.lstm_num_hidden,device = self.device)
+            h_zero = torch.zeros(self.lstm_num_layers , x_batch_size, self.lstm_num_hidden,device = self.device)
+            c_zero = torch.zeros(self.lstm_num_layers , x_batch_size, self.lstm_num_hidden,device = self.device)
 
         output, (hn, cn) = self.rnn(x, (h_zero, c_zero))
         #Map to the vocabulary classes
         output = self.output_mapping(output)
 
         return output
+
+    def generate_sentence(self,sentence_length,temperature):
+
+        h_n = torch.zeros(self.lstm_num_layers , 1, self.lstm_num_hidden, device=self.device)
+        c_n = torch.zeros(self.lstm_num_layers , 1, self.lstm_num_hidden, device=self.device)
+
+        start_letter = random.randint(0,self.vocab_size-1)
+        sentence_id = [start_letter]
+        start_letter = torch.tensor(start_letter,device=self.device)
+        #print(letter)
+        input = self.embed(start_letter)
+        #print(input.shape)
+        input = input.view(1,1,-1)
+
+        if temperature <= 0:
+
+            for i in range(sentence_length):
+
+                output, (h_n, c_n) = self.rnn(input, (h_n, c_n))
+                output = self.output_mapping(output)
+                #print(output.shape)
+                letter = torch.argmax(output, dim=2)
+                sentence_id.append(letter.item())
+                #print(letter)
+                #print(letter.shape)
+                input = self.embed(letter)
+                #print(input.shape)
+                #input = input.view(1, 1, -1)
+                #print(output)
+                #print("-" * 50)
+                #print(h_n)
+                #print(c_n)
+                #f
+        else:
+
+            for i in range(sentence_length):
+                output, (h_n, c_n) = self.rnn(input, (h_n, c_n))
+                output = self.output_mapping(output)
+                #print(output.shape)
+
+                new_distribution = nn.functional.softmax(output.squeeze() / temperature)
+
+                sample_letter = torch.multinomial(new_distribution, 1)
+
+                sentence_id.append(sample_letter.item())
+
+                #print(letter)
+                #print(letter.shape)
+                input = self.embed(sample_letter)
+                #print(input.shape)
+                input = input.view(1, 1, -1)
+                #print(input.shape)
+                #print(output)
+                #print("-" * 50)
+                #print(h_n)
+                #print(c_n)
+                #f
+
+        return sentence_id

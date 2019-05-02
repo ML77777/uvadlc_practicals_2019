@@ -115,7 +115,7 @@ def train(config):
             #outputs_2 = outputs_2.to(device)
             #print(outputs_2.shape)
             #print(batch_targets)
-            #batch_targets = torch.stack(batch_targets).to(device)
+            batch_targets = torch.stack(batch_targets).to(device)
             #batch_targets_2 = batch_targets.view(-1)
             #batch_targets_2 = batch_targets_2.to(device)
             #print(batch_targets_2.shape)
@@ -139,12 +139,13 @@ def train(config):
             #Predicted characters of example 1
             #print(sentence_0)
             #print(dataset.convert_to_string(sentence_0.tolist()))
-            print(outputs)
             number_predictions = torch.argmax(outputs, dim=2)
-            print(number_predictions)
-            sfa
             result = number_predictions == batch_targets
             accuracy = result.sum().item() / (batch_targets.shape[0] * batch_targets.shape[1])
+
+            sentence_id = model.generate_sentence(30,config.temperature)
+            sentence = dataset.convert_to_string(sentence_id)
+            print(sentence)
 
             if config.measure_type == 2:
                 acc_average.append(accuracy)
@@ -230,6 +231,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--device', type=str, default="cuda:0", help="Training device 'cpu' or 'cuda:0'")
     parser.add_argument('--measure_type', type=int, default="2", help="Track accuracy and loss on every step (0), every print step (1) or every print step take avrerage over those intervals (2)")
+    parser.add_argument('--temperature', type=int, default="-1",help="Temperature parameter value, if smaller or equal to zero, then greedy sampling, else random sampling with this value")
 
     config = parser.parse_args()
 
