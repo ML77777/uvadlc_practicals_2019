@@ -27,7 +27,7 @@ class TextDataset(data.Dataset):
     def __init__(self, filename, seq_length):
         assert os.path.splitext(filename)[1] == ".txt"
         self._seq_length = seq_length
-        self._data = open(filename, 'r').read()
+        self._data = open(filename, 'r',encoding='utf8').read()
         self._chars = list(set(self._data))
         self._data_size, self._vocab_size = len(self._data), len(self._chars)
         print("Initialize dataset with {} characters, {} unique.".format(
@@ -35,6 +35,8 @@ class TextDataset(data.Dataset):
         self._char_to_ix = { ch:i for i,ch in enumerate(self._chars) }
         self._ix_to_char = { i:ch for i,ch in enumerate(self._chars) }
         self._offset = 0
+        #Ensure the vocabulary is in the same order if data load
+        self._chars.sort()
 
     def __getitem__(self, item):
         offset = np.random.randint(0, len(self._data)-self._seq_length-2)

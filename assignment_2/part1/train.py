@@ -191,14 +191,14 @@ if __name__ == "__main__":
     parser.add_argument('--train_steps', type=int, default=10000, help='Number of training steps')
     parser.add_argument('--max_norm', type=float, default=10.0)
     parser.add_argument('--device', type=str, default="cuda:0", help="Training device 'cpu' or 'cuda:0'")
-    parser.add_argument('--measure_type', type=int, default="1", help="Track accuracy and loss on every step (0), every 10 step (1) or every 10 step take avrerage over them (2)")
+    parser.add_argument('--measure_type', type=int, default="2", help="Track accuracy and loss on every step (0), every 10 step (1) or every 10 step take avrerage over them (2)")
     parser.add_argument('--overview_length', type=int, default="0", help="Plot the accuracy curves of different Palindromes lengths of 1")
 
     config = parser.parse_args()
 
     config.model_type = "LSTM"
-    config.input_length = 25
-    config.learning_rate = 0.01
+    config.input_length = 20
+    config.learning_rate = 0.0001
     config.device = 'cpu'
 
     #Seeds for for reproducibility

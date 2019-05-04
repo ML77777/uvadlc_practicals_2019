@@ -33,6 +33,8 @@ import sys
 sys.path.append("..")
 from part2.dataset import TextDataset
 from part2.model import TextGenerationModel
+import matplotlib.pyplot as plt
+import pickle
 
 ################################################################################
 
@@ -45,7 +47,7 @@ def train(config):
     dataset = TextDataset(config.txt_file,config.seq_length)  # fixme
     data_loader = DataLoader(dataset, config.batch_size, num_workers=1)
 
-    #print(dataset._char_to_ix) vocabulary changes, but batches are same sentence examples with the seeds earlier.
+    #print(dataset._char_to_ix) vocabulary order changes, but batches are same sentence examples with the seeds earlier.
 
     # Initialize the model that we are going to use
     model = TextGenerationModel(config.batch_size, config.seq_length, dataset.vocab_size,config.lstm_num_hidden, config.lstm_num_layers, config.device)  # fixme
@@ -59,7 +61,7 @@ def train(config):
     print("Len dataset:", len(dataset))
     print("Amount of steps for dataset:",len(dataset)/config.batch_size)
 
-    current_step = -1
+    current_step = 0
     not_max = True
 
     list_train_acc = []
@@ -67,9 +69,18 @@ def train(config):
     acc_average = []
     loss_average = []
 
+    file = open("sentences.txt", 'w', encoding='utf-8')
+
+    '''
+    file_greedy = open("sentences_greedy.txt",'w',encoding='utf-8')
+    file_tmp_05 = open("sentences_tmp_05.txt", 'w', encoding='utf-8')
+    file_tmp_1 = open("sentences_tmp_1.txt", 'w', encoding='utf-8')
+    file_tmp_2 = open("sentences_tmp_2.txt", 'w', encoding='utf-8')
+    '''
+
     while not_max:
 
-        for step, (batch_inputs, batch_targets) in enumerate(data_loader):
+        for (batch_inputs, batch_targets) in data_loader:
 
             # Only for time measurement of step through network
             t1 = time.time()
@@ -77,75 +88,75 @@ def train(config):
             #######################################################
             # Add more code here ...
 
-            current_step += 1
-
             #List of indices from word to ID, that is in dataset for embedding
             #Embedding lookup
-            embed = model.embed #nn.Embedding(dataset.vocab_size, config.lstm_num_hidden)
+            embed = model.embed #Embeding shape(dataset.vocab_size, config.lstm_num_hidden)
 
-            #Preprocess input to embeddings to give to LSTM
+            #Preprocess input to embeddings to give to LSTM all at once
             all_embed = []
-            sentence = []
+            #sentence = []
             for batch_letter in batch_inputs:
-                batch_letter_to = torch.tensor(batch_letter,device = device)
+                batch_letter_to = batch_letter.to(device) #torch.tensor(batch_letter,device = device)
                 embedding = embed(batch_letter_to)
                 all_embed.append(embedding)
 
-                sentence.append(batch_letter_to[0].item())
+                #sentence.append(batch_letter_to[0].item())
             all_embed = torch.stack(all_embed)
 
+            #Print first example sentence of batch along with target
             #print(dataset.convert_to_string(sentence))
-
-            sentence = []
-            for batch_letter in batch_targets:
-                sentence.append(batch_letter[0].item())
+            #sentence = []
+            #for batch_letter in batch_targets:
+            #    sentence.append(batch_letter[0].item())
             #print(dataset.convert_to_string(sentence))
-
 
             all_embed  = all_embed.to(device)
-            outputs = model(all_embed) #[30,64,87] dimension for fairy tails
+            outputs = model(all_embed) #[30,64,vocab_size] 87 last dimension for fairy tails
 
             #######################################################
 
             #loss = np.inf   # fixme
-            accuracy = 0.0  # fixme
+            #accuracy = 0.0  # fixme
 
-            #Method 1, turn 3d into 2d tensor
-            #outputs_2 = outputs.view(-1, dataset.vocab_size)
-            #outputs_2 = outputs_2.to(device)
-            #print(outputs_2.shape)
-            #print(batch_targets)
-            batch_targets = torch.stack(batch_targets).to(device)
-            #batch_targets_2 = batch_targets.view(-1)
-            #batch_targets_2 = batch_targets_2.to(device)
-            #print(batch_targets_2.shape)
-            #loss = criterion(outputs_2, batch_targets_2)
-
-            #Method 2, ensuring that the prediction dim are batchsize x vocab_size x sequence length and targets: batchsize x sequence length
+            #For loss: ensuring that the prediction dim are batchsize x vocab_size x sequence length and targets: batchsize x sequence length
             batch_first_output = outputs.transpose(0, 1).transpose(1, 2)
+            batch_targets = torch.stack(batch_targets).to(device)
             loss = criterion(batch_first_output, torch.t(batch_targets))
+
+            #Backpropagate
             model.zero_grad()
             loss.backward()
             loss = loss.item()
             torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
             optimizer.step()
 
-            sentence_0 = outputs[:,0,:].argmax(dim=1)
-            #print(outputs[:,0,:])
-            #print(outputs[:,0,:].argmax(dim=1))
-            #print(batch_targets.shape)
-            #print(batch_targets)
-
-            #Predicted characters of example 1
-            #print(sentence_0)
-            #print(dataset.convert_to_string(sentence_0.tolist()))
+            #Accuracy
             number_predictions = torch.argmax(outputs, dim=2)
             result = number_predictions == batch_targets
             accuracy = result.sum().item() / (batch_targets.shape[0] * batch_targets.shape[1])
 
-            sentence_id = model.generate_sentence(30,config.temperature)
+            ''''
+            #Generate sentences for all settings on every step
+            sentence_id = model.generate_sentence(config.gsen_length, -1)
             sentence = dataset.convert_to_string(sentence_id)
-            print(sentence)
+            #print(sentence)
+            file_greedy.write( (str(current_step) + ": " + sentence + "\n"))
+
+            sentence_id = model.generate_sentence(config.gsen_length, 0.5)
+            sentence = dataset.convert_to_string(sentence_id)
+            #print(sentence)
+            file_tmp_05.write( (str(current_step) + ": " + sentence + "\n"))
+
+            sentence_id = model.generate_sentence(config.gsen_length, 1)
+            sentence = dataset.convert_to_string(sentence_id)
+            #print(sentence)
+            file_tmp_1.write( (str(current_step) + ": " + sentence + "\n"))
+
+            sentence_id = model.generate_sentence(config.gsen_length, 2)
+            sentence = dataset.convert_to_string(sentence_id)
+            #print(sentence)
+            file_tmp_2.write( (str(current_step) + ": " + sentence + "\n"))
+            '''
 
             if config.measure_type == 2:
                 acc_average.append(accuracy)
@@ -155,16 +166,16 @@ def train(config):
             t2 = time.time()
             examples_per_second = config.batch_size/float(t2-t1)
 
-            if step % config.print_every == 0:
+            if current_step % config.print_every == 0:
 
-                # Average accuracy and loss over the last print every step
+                # Average accuracy and loss over the last print every step (5 by default)
                 if config.measure_type == 2:
                     accuracy = sum(acc_average) / config.print_every
                     loss = sum(loss_average) / config.print_every
                     acc_average = []
                     loss_average = []
 
-                # Either accuracy and loss on the the 10th interval or the average of the last 10 steps.
+                # Either accuracy and loss on the print every interval or the average of that interval as stated above
                 list_train_acc.append(accuracy)
                 list_train_loss.append(loss)
 
@@ -179,9 +190,12 @@ def train(config):
                 list_train_acc.append(accuracy)
                 list_train_loss.append(loss)
 
-            if step == config.sample_every:
-                # Generate some sentences by sampling from the model
-                pass
+            if current_step % config.sample_every == 0:
+                # Generate sentence
+                sentence_id = model.generate_sentence(config.gsen_length, config.temperature)
+                sentence = dataset.convert_to_string(sentence_id)
+                print(sentence)
+                file.write((str(current_step) + ": " + sentence + "\n"))
 
             if current_step == config.train_steps:
                 # If you receive a PyTorch data-loader error, check this bug report:
@@ -189,6 +203,42 @@ def train(config):
                 not_max = False
                 break
 
+            current_step += 1
+
+    # Close the file and make sure sentences en measures are saved
+    file.close()
+    pickle.dump((list_train_acc, list_train_loss), open("loss_and_train.p", "wb"))
+
+    #Plot
+    print(len(list_train_acc))
+
+    if config.measure_type == 0:
+        eval_steps = list(range(config.train_steps + 1))  # Every step Acc
+    else: #
+        eval_steps = list(range(0, config.train_steps + config.print_every, config.print_every))
+
+    if config.measure_type == 2:
+        plt.plot(eval_steps[:-1], list_train_acc[1:], label="Train accuracy")
+    else:
+        plt.plot(eval_steps, list_train_acc, label="Train accuracy")
+
+    plt.xlabel("Step")
+    plt.ylabel("Accuracy")
+    plt.title("Training accuracy LSTM", fontsize=18, fontweight="bold")
+    plt.legend()
+    # plt.savefig('accuracies.png', bbox_inches='tight')
+    plt.show()
+
+    if config.measure_type == 2:
+        plt.plot(eval_steps[:-1], list_train_loss[1:], label="Train loss")
+    else:
+        plt.plot(eval_steps, list_train_loss, label="Train loss")
+    plt.xlabel("Step")
+    plt.ylabel("Loss")
+    plt.title("Training loss LSTM", fontsize=18, fontweight="bold")
+    plt.legend()
+    # plt.savefig('loss.png', bbox_inches='tight')
+    plt.show()
     print('Done training.')
 
 
@@ -230,13 +280,17 @@ if __name__ == "__main__":
     parser.add_argument('--sample_every', type=int, default=100, help='How often to sample from the model')
 
     parser.add_argument('--device', type=str, default="cuda:0", help="Training device 'cpu' or 'cuda:0'")
+
     parser.add_argument('--measure_type', type=int, default="2", help="Track accuracy and loss on every step (0), every print step (1) or every print step take avrerage over those intervals (2)")
-    parser.add_argument('--temperature', type=int, default="-1",help="Temperature parameter value, if smaller or equal to zero, then greedy sampling, else random sampling with this value")
+    parser.add_argument('--temperature', type=float, default="-1",help="Temperature parameter value, if smaller or equal to zero, then greedy sampling, else random sampling with this value")
+    parser.add_argument('--gsen_length', type=int, default="30",help="Length of the sentence to generate")
 
     config = parser.parse_args()
 
     #config.device = 'cpu'
-    config.train_steps = 9000
+    config.train_steps = 50000
+    #config.sample_every = 10000
+    #config.print_every = 10
 
     #Same sentence examples.
     torch.manual_seed(42)
@@ -244,6 +298,8 @@ if __name__ == "__main__":
     if 'cuda' in config.device.lower() and torch.cuda.is_available():
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
+
+    #favorite_color = pickle.load(open("loss_and_train.p", "rb"))
 
     # Train the model
     train(config)

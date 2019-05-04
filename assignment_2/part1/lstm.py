@@ -38,10 +38,9 @@ class LSTM(nn.Module):
 
         if 'cuda' in device.lower() and torch.cuda.is_available():
             self.device = torch.device('cuda')
-            #print("Cuda")
         else:
             self.device = torch.device('cpu')
-            #print("CPU")
+        print(device)
 
         #Matrices multiplied with input
         self.w_gx = nn.Parameter( torch.randn(input_dim,num_hidden,device=self.device))

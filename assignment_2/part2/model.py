@@ -20,7 +20,7 @@ from __future__ import print_function
 import torch.nn as nn
 import torch
 import random
-
+import numpy as np
 
 class TextGenerationModel(nn.Module):
 
@@ -38,7 +38,6 @@ class TextGenerationModel(nn.Module):
 
         if 'cuda' in device.lower() and torch.cuda.is_available():
             self.device = torch.device('cuda')
-            #print("Cuda")
         else:
             self.device = torch.device('cpu')
         print(self.device)
@@ -51,8 +50,6 @@ class TextGenerationModel(nn.Module):
         self.rnn = nn.LSTM(input_size = lstm_num_hidden,hidden_size=lstm_num_hidden,num_layers=2)
         self.h_zero = torch.zeros(self.lstm_num_layers, batch_size, lstm_num_hidden,device = self.device)
         self.c_zero = torch.zeros(self.lstm_num_layers, batch_size, lstm_num_hidden,device = self.device)
-        #self.h_zero = torch.randn(2, batch_size, lstm_num_hidden)
-        #self.c_zero = torch.randn(2, batch_size, lstm_num_hidden)
 
         #Linear output mapping
         self.output_mapping = nn.Linear(lstm_num_hidden, vocabulary_size)
@@ -95,42 +92,19 @@ class TextGenerationModel(nn.Module):
 
                 output, (h_n, c_n) = self.rnn(input, (h_n, c_n))
                 output = self.output_mapping(output)
-                #print(output.shape)
                 letter = torch.argmax(output, dim=2)
                 sentence_id.append(letter.item())
-                #print(letter)
-                #print(letter.shape)
                 input = self.embed(letter)
-                #print(input.shape)
-                #input = input.view(1, 1, -1)
-                #print(output)
-                #print("-" * 50)
-                #print(h_n)
-                #print(c_n)
-                #f
         else:
 
             for i in range(sentence_length):
                 output, (h_n, c_n) = self.rnn(input, (h_n, c_n))
                 output = self.output_mapping(output)
-                #print(output.shape)
-
-                new_distribution = nn.functional.softmax(output.squeeze() / temperature)
-
+                new_distribution = nn.functional.softmax(output.squeeze() / temperature,dim=0)
                 sample_letter = torch.multinomial(new_distribution, 1)
-
                 sentence_id.append(sample_letter.item())
 
-                #print(letter)
-                #print(letter.shape)
                 input = self.embed(sample_letter)
-                #print(input.shape)
                 input = input.view(1, 1, -1)
-                #print(input.shape)
-                #print(output)
-                #print("-" * 50)
-                #print(h_n)
-                #print(c_n)
-                #f
 
         return sentence_id
