@@ -25,11 +25,14 @@ class Encoder(nn.Module):
         #Use a ReLU layer and Adam to speed up convergence as stated in Carl Doersh's Tutorial
         self.relu = nn.ReLU()
 
-        #Then network has 2 outputs, parameters for the Gaussian, but weights are seperate for each parameter
-        self.first_mu_layer = nn.Linear(input_dim, hidden_dim)
+        #Weights of first layer are shared as stated in VAE paper if Gaussian encoder
+        self.first_layer = nn.Linear(input_dim, hidden_dim)
+
+        #Then network has 2 outputs, parameters for the Gaussian
+        #self.first_mu_layer = nn.Linear(input_dim, hidden_dim)
         self.second_mu_layer = nn.Linear(hidden_dim, z_dim)
 
-        self.first_std_layer = nn.Linear(input_dim, hidden_dim)
+        #self.first_std_layer = nn.Linear(input_dim, hidden_dim)
         self.second_std_layer = nn.Linear(hidden_dim, z_dim)
 
 
@@ -41,15 +44,18 @@ class Encoder(nn.Module):
         that any constraints are enforced.
         """
 
-        first_mu_output = self.first_mu_layer(input)
-        after_relu = self.relu(first_mu_output )
-        mean = self.second_mu_layer(after_relu)
+        first_layer_output = self.first_layer(input)
+        hidden = self.relu(first_layer_output)
 
-        first_std_output = self.first_std_layer(input)
-        after_relu = self.relu(first_std_output )
-        std = self.second_std_layer(after_relu)
+        #first_mu_output = self.first_mu_layer(input)
+        #after_relu = self.relu(hidden )
+        mean = self.second_mu_layer(hidden)
 
-        #Enforce that std should be positive
+        #first_std_output = self.first_std_layer(input)
+        #after_relu = self.relu(first_std_output )
+        std = self.second_std_layer(hidden)
+
+        #Enforce that std should be positive (and gives stability)
         std = nn.functional.relu(std)
 
         return mean, std
@@ -84,7 +90,7 @@ class Decoder(nn.Module):
         after_relu = self.relu(first_mu_output )
         mean = self.second_mu_layer(after_relu)
 
-        #Constrain values to 0 and 1
+        #Constrain values to 0 and 1 for the parameter of Bernoulli
         mean = torch.sigmoid(mean)
 
         return mean
@@ -107,6 +113,7 @@ class VAE(nn.Module):
         """
 
         mean_encoder,std_encoder = self.encoder.forward(input)
+
         epsilon = torch.randn(1,self.z_dim,device=self.device)
         #epsilon = torch.randn(mean_encoder.shape)  # device=self.device)
         z = mean_encoder + epsilon * std_encoder
@@ -131,7 +138,6 @@ class VAE(nn.Module):
         reg = torch.sum(D_qp_univariate, dim=1)
         #print("reg: ,", torch.sum(reg,dim=0))
 
-        #average_negative_elbo =
         average_negative_elbo = (torch.sum(recon,dim=0) + torch.sum(reg,dim=0)) / batch_size
 
         return average_negative_elbo
@@ -142,14 +148,13 @@ class VAE(nn.Module):
         (from bernoulli) and the means for these bernoullis (as these are
         used to plot the data manifold).
         """
-        with torch.no_grad():
-            #Get z from standard normal
-            z = torch.randn(n_samples, self.z_dim,device=device)
+        #Get z from standard normal
+        z = torch.randn(n_samples, self.z_dim,device=device)
 
-            #Decode the sampled z
-            sampled_ims = self.decoder.forward(z)
-            im_means = torch.sum(sampled_ims,dim=0)/ len(sampled_ims)
+        #Decode the sampled z
+        im_means = self.decoder.forward(z)
 
+        sampled_ims = torch.bernoulli(im_means)
 
         return sampled_ims, im_means
 
@@ -161,7 +166,6 @@ def epoch_iter(model, data, optimizer):
 
     Returns the average elbo for the complete epoch.
     """
-    #optimizer.zero_grad()
     model.zero_grad()
     average_epoch_elbo = 0
 
@@ -177,11 +181,10 @@ def epoch_iter(model, data, optimizer):
 
         # train the model
         if model.training:
-            #model.zero_grad()
+
             average_negative_elbo.backward()
             #torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=5)
             optimizer.step()
-            #optimizer.zero_grad()
             model.zero_grad()
 
     average_epoch_elbo /= len(data)
@@ -233,18 +236,12 @@ def plot_manifold(x_y_image_dim, manifold_size,model):
     grid = np.linspace(0.05, 0.95, manifold_size)
     grid = list(map(norm.ppf,grid))
     z = torch.tensor(list(itertools.product(grid,grid)) )
-    print(z.shape)
-        #z = torch.stack(z)
-    print(z.shape)
-    z = z.view(-1,1,manifold_size,manifold_size)
     z = z.to(model.device)
     output = model.decoder.forward(z)
 
     output = output.view(-1,1,x_y_image_dim,x_y_image_dim)
-    #print(output)
-    #print(output.shape)
     manifold = make_grid(output,manifold_size)
-    save_image(manifold.t(1,2, 0),filename ="Manifold.png")
+    save_image(manifold,filename ="Manifold.png")
 
 def main(device):
 
@@ -261,6 +258,7 @@ def main(device):
 
     sampled, im_means = model.sample(grid_size * grid_size,device)
     plot_samples(sampled, x_and_y_dim, grid_size, "samples_before_training.png")
+    #plot_samples(im_means, x_and_y_dim, grid_size, "sample_means_before_training.png")
 
     train_curve, val_curve = [], []
     for epoch in range(ARGS.epochs):
@@ -278,6 +276,7 @@ def main(device):
         sampled, im_means = model.sample(grid_size*grid_size,device)
         file_name = "samples_epoch_" + str(epoch) + ".png"
         plot_samples(sampled,x_and_y_dim,grid_size,file_name)
+        #plot_samples(im_means, x_and_y_dim, grid_size, file_name = "sample_means_" + str(epoch) + ".png")
 
         #plot_manifold(x_and_y_dim, manifold_size, model)
 
@@ -288,9 +287,10 @@ def main(device):
     # --------------------------------------------------------------------
     sampled, im_means = model.sample(grid_size * grid_size,device)
     plot_samples(sampled, x_and_y_dim, grid_size, "samples_after_training.png")
+    #plot_samples(im_means, x_and_y_dim, grid_size, "samples_means_after_training.png")
 
     if ARGS.zdim == 2:
-        plot_manifold(x_and_y_dim,mani_size,model)
+        plot_manifold(x_and_y_dim,manifold_size,model)
 
     save_elbo_plot(train_curve, val_curve, 'elbo.pdf')
 
@@ -309,7 +309,7 @@ if __name__ == "__main__":
     ARGS = parser.parse_args()
 
     #ARGS.device = 'cuda'
-    #ARGS.zdim = 2
+    ARGS.zdim = 2
 
     torch.manual_seed(42)
     #np.random.seed(42)
