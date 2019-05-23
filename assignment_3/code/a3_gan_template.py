@@ -107,20 +107,20 @@ class Discriminator(nn.Module):
         return img_score
 
 
-def train(dataloader, discriminator, generator, optimizer_G, optimizer_D):
+def train(dataloader, discriminator, generator, optimizer_G, optimizer_D,device):
     batch_size = args.batch_size
     latent_dim = args.latent_dim
     device = args.device
 
-    args.n_epochs = 5
-    tanh = nn.Tanh()
+    #tanh = nn.Tanh()
     prev_acc = 0
     freeze_acc = 0.75
+    print(device)
 
     for epoch in range(args.n_epochs):
         for i, (imgs, _) in enumerate(dataloader):
 
-            #imgs.cuda()
+            imgs = imgs.cuda()
 
             # Train Generator
             # ---------------
@@ -137,12 +137,10 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D):
             gen_loss.backward()
             optimizer_G.step()
 
-
             # Train Discriminator
             # -------------------
             #optimizer_D.zero_grad()
-
-
+            #imgs = torch.tensor(imgs, device=device)
             actual_batch_size = imgs.shape[0]
             imgs = imgs.view(actual_batch_size,784)
 
@@ -151,9 +149,8 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D):
             gen_imgs.detach()
 
             pred_fake = discriminator(gen_imgs)
-
-            norm_imgs = tanh(imgs) #Normalize between -1 and 1.
-            pred_real = discriminator(norm_imgs)
+            #norm_imgs = tanh(imgs) #Normalize between -1 and 1.
+            pred_real = discriminator(imgs)
 
             if prev_acc < freeze_acc:
                 disc_loss = - (torch.log(pred_real) + torch.log(1 - pred_fake))
@@ -187,7 +184,7 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D):
         print("Epoch " + str(epoch) + " Done")
 
 
-def main():
+def main(device):
     # Create output image directory
     os.makedirs('images', exist_ok=True)
 
@@ -201,13 +198,13 @@ def main():
         batch_size=args.batch_size, shuffle=True)
 
     # Initialize models and optimizers
-    generator = Generator().to(args.device)
-    discriminator = Discriminator().to(args.device)
+    generator = Generator().to(device)
+    discriminator = Discriminator().to(device)
     optimizer_G = torch.optim.Adam(generator.parameters(), lr=args.lr)
     optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=args.lr)
 
     # Start training
-    train(dataloader, discriminator, generator, optimizer_G, optimizer_D)
+    train(dataloader, discriminator, generator, optimizer_G, optimizer_D,device)
 
     # You can save your generator here to re-use it to generate images for your
     # report, e.g.:
@@ -230,6 +227,17 @@ if __name__ == "__main__":
                         help='cpu or cuda')
     args = parser.parse_args()
 
+    args.device = 'cuda'
+
+    torch.manual_seed(42)
+    #np.random.seed(42)
+    if 'cuda' in args.device.lower() and torch.cuda.is_available():
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
+
     #model = Generator()
     #model.load_state_dict(torch.load("mnist_generator.pt"))
     #z = torch.randn(args.batch_size, args.latent_dim)
@@ -238,4 +246,4 @@ if __name__ == "__main__":
     #           'test.png',
     #           nrow=5, normalize=True)
 
-    main()
+    main(device)
